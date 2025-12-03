@@ -1,0 +1,7 @@
+{
+  "name": "BillSplit AI",
+  "description": "Split bills easily by uploading a receipt and telling the AI who ordered what.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
