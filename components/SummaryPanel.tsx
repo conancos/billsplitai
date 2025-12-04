@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState, useRef } from 'react';
 import { ReceiptData, PersonSummary } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
@@ -184,7 +183,7 @@ const SummaryPanel: React.FC<Props> = ({ data, onUpdateTip }) => {
       </div>
 
       <div className="h-40 w-full min-h-[160px] shrink-0 border-t border-gray-100 pt-2 bg-white relative">
-        <div className="absolute inset-0 w-full h-full">
+        <div className="absolute inset-0 w-full h-full" style={{minHeight: '160px'}}>
             <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                     <Pie

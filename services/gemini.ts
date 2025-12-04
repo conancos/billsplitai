@@ -63,13 +63,21 @@ export async function analyzeReceiptImage(base64Image: string): Promise<ReceiptD
   const ai = getAiClient();
   
   try {
-    // Changed from gemini-3-pro-preview to gemini-2.5-flash for better quota handling and speed
+    // Changed to gemini-2.5-flash for speed and quota
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: {
         parts: [
             { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
-            { text: "Analyze this receipt image. Extract all items, prices, tax, tip, and total. Identify the currency symbol. Return strictly JSON." }
+            { text: `
+              Analyze this receipt image. Extract all items, prices, tax, tip, and total. Identify the currency symbol. 
+              
+              CRITICAL INSTRUCTIONS:
+              1. **Edge Detection**: If this is a partial photo (e.g. bottom half of receipt), check the VERY TOP edge carefully. Do not ignore lines just because they look cut off.
+              2. **Missing Items**: If an item name is cut off but price is visible, include it as "Unknown Item".
+              3. **Tax Logic**: If the receipt lists tax separately but the item prices ALREADY include tax (common in Europe), extract the tax amount anyway.
+              4. Return strictly JSON.
+            ` }
         ]
       },
       config: {
@@ -90,12 +98,30 @@ export async function analyzeReceiptImage(base64Image: string): Promise<ReceiptD
       assignedTo: []
     }));
 
+    // --- SMART TAX LOGIC ---
+    // Check if items sum up to Total (VAT Included) or Subtotal (VAT Excluded)
+    const sumItems = items.reduce((sum: number, item: any) => sum + item.price, 0);
+    const statedTotal = data.total || 0;
+    
+    // If sum of items is closer to Total than to (Total - Tax), implies Tax is included in item prices.
+    // In this case, we zero out the 'tax' field for the split calculation so we don't add it twice.
+    let finalTax = data.tax || 0;
+    let finalSubtotal = data.subtotal || sumItems;
+
+    if (Math.abs(sumItems - statedTotal) < (statedTotal * 0.05)) {
+        // The items already equal the total. Tax is included.
+        // We set tax to 0 for the "Add on" logic in SummaryPanel, 
+        // effectively treating the item prices as the final cost to split.
+        finalTax = 0;
+        finalSubtotal = sumItems; 
+    }
+
     return {
       items,
-      subtotal: data.subtotal || 0,
-      tax: data.tax || 0,
+      subtotal: finalSubtotal,
+      tax: finalTax,
       tip: data.tip || 0,
-      total: data.total || 0,
+      total: statedTotal,
       currency: data.currency || '$'
     };
 

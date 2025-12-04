@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, Send, Receipt, Plus, Loader2, ImagePlus, X, Eye, Save, Image as ImageIcon, Video, Merge, Trash2, Files } from 'lucide-react';
 import { ReceiptData, ChatMessage, ReceiptItem } from './types';
@@ -121,9 +120,9 @@ const App: React.FC = () => {
                 // Check specifically for Quota/429 errors
                 const errorMessage = JSON.stringify(err);
                 if (errorMessage.includes("429") || errorMessage.includes("Quota")) {
-                    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: '⚠️ La IA está ocupada (Límite de cuota excedido). Espera un minuto e intenta de nuevo. También puedes introducir los datos manualmente. ', timestamp: Date.now() }]);
+                    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: '⚠️ La IA está ocupada (Límite de cuota excedido). Espera un minuto e intenta de nuevo. También puedes añadir los datos manualmente. ', timestamp: Date.now() }]);
                 } else {
-                    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: 'No pude leer el recibo. Por favor intenta con una foto más clara o revisa tu conexión. También puedes introducir los datos manualmente. ', timestamp: Date.now() }]);
+                    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: 'No pude leer el recibo. Por favor intenta con una foto más clara o revisa tu conexión. También puedes añadir los datos manualmente. ', timestamp: Date.now() }]);
                 }
             } finally {
                 setIsAnalyzing(false);
@@ -349,8 +348,8 @@ const App: React.FC = () => {
            <div className="bg-indigo-600 p-1.5 rounded-lg">
              <Receipt className="text-white w-5 h-5" />
            </div>
-           <h1 className="font-bold text-lg tracking-tight text-gray-800 hidden sm:block">BillSplit<span className="text-indigo-600">AI</span></h1>
-           <h1 className="font-bold text-lg tracking-tight text-gray-800 sm:hidden">Split<span className="text-indigo-600">AI</span></h1>
+           {/* Unified Title */}
+           <h1 className="font-bold text-lg tracking-tight text-gray-800">BillSplit<span className="text-indigo-600">AI</span></h1>
         </div>
         <div className="flex gap-2">
             {receiptImage && (
@@ -395,7 +394,7 @@ const App: React.FC = () => {
             onChange={handleFileUpload}
             style={{ display: 'none' }} 
         />
-        {/* Important: REMOVED pointerEvents: 'none' to allow click on mobile */}
+        {/* Important: REMOVED pointerEvents to allow click on mobile */}
         <input 
             type="file" 
             ref={cameraInputRef} 
@@ -408,7 +407,8 @@ const App: React.FC = () => {
                 left: 0, 
                 opacity: 0, 
                 width: '1px', 
-                height: '1px'
+                height: '1px',
+                zIndex: -1
             }}
         />
       </header>
