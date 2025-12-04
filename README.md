@@ -1,11 +1,13 @@
 # 🧾 BillSplit AI
 
 > **Divide cuentas sin dolor de cabeza.** 
-> Una aplicación inteligente que escanea recibos y permite dividir gastos simplemente chateando.
+> Una aplicación inteligente que escanea recibos y permite dividir gastos simplemente chateando. Para cuando cada uno tenga que pagarse lo suyo:
+> Entrecots🥩, postres🍨 ó cubatas🥃, incluídos😉
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Status](https://img.shields.io/badge/status-live-green.svg)
 ![AI](https://img.shields.io/badge/AI-Gemini_Pro-purple.svg)
+![FreeUse](https://img.shields.io/badge/Free-100%25-lime)
 
 ## 📱 ¿Qué es esto?
 
