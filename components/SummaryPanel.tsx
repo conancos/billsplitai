@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState, useRef } from 'react';
 import { ReceiptData, PersonSummary } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
@@ -182,28 +183,30 @@ const SummaryPanel: React.FC<Props> = ({ data, onUpdateTip }) => {
         )}
       </div>
 
-      <div className="h-32 w-full min-h-[128px] shrink-0 border-t border-gray-100 pt-2 bg-white">
-        <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-                <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={30}
-                    outerRadius={50}
-                    paddingAngle={5}
-                    dataKey="value"
-                >
-                    {chartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                </Pie>
-                <Tooltip 
-                    formatter={(value: number) => `${data.currency}${value.toFixed(2)}`}
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                />
-            </PieChart>
-        </ResponsiveContainer>
+      <div className="h-40 w-full min-h-[160px] shrink-0 border-t border-gray-100 pt-2 bg-white relative">
+        <div className="absolute inset-0 w-full h-full">
+            <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                    <Pie
+                        data={chartData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={30}
+                        outerRadius={50}
+                        paddingAngle={5}
+                        dataKey="value"
+                    >
+                        {chartData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                    </Pie>
+                    <Tooltip 
+                        formatter={(value: number) => `${data.currency}${value.toFixed(2)}`}
+                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    />
+                </PieChart>
+            </ResponsiveContainer>
+        </div>
       </div>
       
       {/* Tip Control Section */}

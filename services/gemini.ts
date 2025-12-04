@@ -63,8 +63,9 @@ export async function analyzeReceiptImage(base64Image: string): Promise<ReceiptD
   const ai = getAiClient();
   
   try {
+    // Changed from gemini-3-pro-preview to gemini-2.5-flash for better quota handling and speed
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-2.5-flash',
       contents: {
         parts: [
             { inlineData: { mimeType: 'image/jpeg', data: base64Image } },
@@ -136,7 +137,7 @@ export async function processSplitCommand(
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         responseMimeType: "application/json",

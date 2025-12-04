@@ -116,8 +116,15 @@ const App: React.FC = () => {
                 } else {
                     applyNewReceiptData(newData);
                 }
-            } catch (err) {
-                setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: 'No pude leer el recibo. Por favor intenta con una foto más clara.', timestamp: Date.now() }]);
+            } catch (err: any) {
+                console.error("Processing error:", err);
+                // Check specifically for Quota/429 errors
+                const errorMessage = JSON.stringify(err);
+                if (errorMessage.includes("429") || errorMessage.includes("Quota")) {
+                    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: '⚠️ La IA está ocupada (Límite de cuota excedido). Espera un minuto e intenta de nuevo. También puedes introducir los datos manualmente. ', timestamp: Date.now() }]);
+                } else {
+                    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: 'No pude leer el recibo. Por favor intenta con una foto más clara o revisa tu conexión. También puedes introducir los datos manualmente. ', timestamp: Date.now() }]);
+                }
             } finally {
                 setIsAnalyzing(false);
             }
@@ -388,7 +395,7 @@ const App: React.FC = () => {
             onChange={handleFileUpload}
             style={{ display: 'none' }} 
         />
-        {/* Important: Do NOT use display:none for the capture input on mobile, use opacity 0 */}
+        {/* Important: REMOVED pointerEvents: 'none' to allow click on mobile */}
         <input 
             type="file" 
             ref={cameraInputRef} 
@@ -401,8 +408,7 @@ const App: React.FC = () => {
                 left: 0, 
                 opacity: 0, 
                 width: '1px', 
-                height: '1px', 
-                /* pointerEvents: 'none'  */
+                height: '1px'
             }}
         />
       </header>
