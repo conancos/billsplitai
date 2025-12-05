@@ -72,9 +72,9 @@ export async function analyzeReceiptImage(base64Image: string): Promise<ReceiptD
             { text: `
               Analyze this receipt image. Extract all items, prices, tax, tip, and total. Identify the currency symbol. 
               
-              CRITICAL INSTRUCTIONS:
-              1. **Edge Detection**: If this is a partial photo (e.g. bottom half of receipt), check the VERY TOP edge carefully. Do not ignore lines just because they look cut off.
-              2. **Missing Items**: If an item name is cut off but price is visible, include it as "Unknown Item".
+              CRITICAL INSTRUCTIONS FOR SPLIT/PARTIAL RECEIPTS:
+              1. **TOP EDGE DETECTION**: This might be the 2nd half of a long receipt. Look at the VERY TOP pixel line. If there is text cut off or a price appearing without a name, try to infer it or label it "Item continued". DO NOT SKIP the first item even if it looks incomplete.
+              2. **Missing Items**: If an item name is cut off but price is visible, include it as "Unknown Item" with the price.
               3. **Tax Logic**: If the receipt lists tax separately but the item prices ALREADY include tax (common in Europe), extract the tax amount anyway.
               4. Return strictly JSON.
             ` }

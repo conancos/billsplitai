@@ -49,7 +49,8 @@ const App: React.FC = () => {
 
   // Refs
   const chatEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);   // For Gallery/File Picker
+  const fileInputRef = useRef<HTMLInputElement>(null);   // For Gallery
+  const mobileInputRef = useRef<HTMLInputElement>(null); // For Mobile Camera
   const videoRef = useRef<HTMLVideoElement>(null);       // For Desktop Webcam
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -213,6 +214,10 @@ const App: React.FC = () => {
     fileInputRef.current?.click();
   };
 
+  const triggerMobileCamera = () => {
+    mobileInputRef.current?.click();
+  };
+
   // --- Webcam Logic (Desktop Only) ---
   const startWebcam = async () => {
     try {
@@ -358,23 +363,17 @@ const App: React.FC = () => {
                 <span>Cámara</span>
             </button>
 
-            {/* MOBILE CAMERA LABEL (Native Input) - Visible on sm/md screens */}
-            {/* Using a label triggers the file input immediately without JS restrictions */}
-            <label 
-                className={`lg:hidden flex items-center gap-2 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition active:scale-95 disabled:opacity-50 cursor-pointer ${isAnalyzing ? 'opacity-50 pointer-events-none' : ''}`}
+            {/* MOBILE CAMERA BUTTON (Native Trigger) - Visible on sm/md screens */}
+            {/* Switched back to button + ref click for reliability outside iframes */}
+            <button 
+                onClick={triggerMobileCamera}
+                disabled={isAnalyzing}
+                className="lg:hidden flex items-center gap-2 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition active:scale-95 disabled:opacity-50"
             >
                  {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
                  <span className="sm:hidden">Foto</span>
                  <span className="hidden sm:inline">Cámara</span>
-                 <input 
-                    type="file" 
-                    accept="image/*" 
-                    capture="environment"
-                    onChange={handleFileUpload}
-                    disabled={isAnalyzing}
-                    className="hidden"
-                 />
-            </label>
+            </button>
         </div>
         
         {/* Gallery Input (Hidden) */}
@@ -384,6 +383,15 @@ const App: React.FC = () => {
             accept="image/*" 
             onChange={handleFileUpload}
             style={{ display: 'none' }} 
+        />
+        {/* Mobile Camera Input (Hidden but accessible) */}
+        <input 
+            type="file" 
+            ref={mobileInputRef}
+            accept="image/*"
+            capture="environment"
+            onChange={handleFileUpload}
+            style={{ display: 'none' }}
         />
       </header>
 
