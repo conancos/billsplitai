@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { ReceiptData, PersonSummary } from '../types';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { Download, Share2, Calculator } from 'lucide-react';
@@ -13,14 +13,36 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'
 
 const SummaryPanel: React.FC<Props> = ({ data, onUpdateTip }) => {
   const [tipMode, setTipMode] = useState<'receipt' | 'percent' | 'fixed'>('receipt');
-  const [tipValue, setTipValue] = useState<number>(10); // Default 10% or 10 value
+  const [tipValue, setTipValue] = useState<number>(10);
+  const [isChartVisible, setIsChartVisible] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  // Hook to check visibility for Recharts safety
+  useEffect(() => {
+    const checkVisibility = () => {
+        if (panelRef.current) {
+            // Check if the element has width/height, implying it's visible in the layout
+            const { offsetWidth, offsetHeight } = panelRef.current;
+            setIsChartVisible(offsetWidth > 0 && offsetHeight > 0);
+        }
+    };
+    
+    // Check initially and on resize
+    checkVisibility();
+    window.addEventListener('resize', checkVisibility);
+    // Simple interval to check if tab changed visibility
+    const interval = setInterval(checkVisibility, 500);
+
+    return () => {
+        window.removeEventListener('resize', checkVisibility);
+        clearInterval(interval);
+    };
+  }, []);
 
   const summaryData = useMemo(() => {
     const peopleMap = new Map<string, PersonSummary>();
     let unassignedTotal = 0;
 
-    // Initialize "Unassigned"
     peopleMap.set('Unassigned', {
       name: 'Unassigned',
       items: [],
@@ -52,7 +74,6 @@ const SummaryPanel: React.FC<Props> = ({ data, onUpdateTip }) => {
             });
           }
           const p = peopleMap.get(personName)!;
-          // Aggregate items if they exist
           const existingItem = p.items.find(i => i.name === item.name);
           if (existingItem) {
               existingItem.cost += splitPrice;
@@ -74,7 +95,6 @@ const SummaryPanel: React.FC<Props> = ({ data, onUpdateTip }) => {
        person.total = person.subtotal + person.taxShare + person.tipShare;
     });
 
-    // Remove unassigned if empty, otherwise keep it at the top
     const result = Array.from(peopleMap.values());
     const unassigned = result.find(p => p.name === 'Unassigned');
     const others = result.filter(p => p.name !== 'Unassigned').sort((a, b) => b.total - a.total);
@@ -102,13 +122,6 @@ const SummaryPanel: React.FC<Props> = ({ data, onUpdateTip }) => {
           newTipAmount = value;
       } else if (mode === 'percent' && value !== undefined) {
           newTipAmount = data.subtotal * (value / 100);
-      } else if (mode === 'receipt') {
-          // Ideally we would revert to original, but we might not have it stored in this component context easily without props drilling
-          // For now, assume data.tip is passed updated from parent, but this function triggers the update
-          // Actually, if we switch back to receipt, we might need the parent to restore original. 
-          // For simplicity in this UX, 'receipt' mode just means "don't override".
-          // If the user wants to go back to original scanned tip, they can re-enter it or we rely on parent logic.
-          // Let's implement simpler logic: Receipt tip is just a starting point.
       }
       
       if (mode !== 'receipt') {
@@ -121,7 +134,7 @@ const SummaryPanel: React.FC<Props> = ({ data, onUpdateTip }) => {
           try {
               const canvas = await html2canvas(panelRef.current, {
                   backgroundColor: '#ffffff',
-                  scale: 2 // Retain quality
+                  scale: 2
               });
               const link = document.createElement('a');
               link.download = 'bill-split-summary.png';
@@ -135,7 +148,7 @@ const SummaryPanel: React.FC<Props> = ({ data, onUpdateTip }) => {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 h-full flex flex-col relative" ref={panelRef}>
-      <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+      <div className="p-3 md:p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
         <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
           <span>💰</span> Live Split
         </h3>
@@ -146,7 +159,7 @@ const SummaryPanel: React.FC<Props> = ({ data, onUpdateTip }) => {
         )}
       </div>
       
-      <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto no-scrollbar p-3 space-y-3">
         {summaryData.length === 0 ? (
             <div className="text-center text-gray-400 py-10">
                 <p>Asigna artículos para ver el resumen</p>
@@ -184,32 +197,35 @@ const SummaryPanel: React.FC<Props> = ({ data, onUpdateTip }) => {
 
       <div className="h-40 w-full min-h-[160px] shrink-0 border-t border-gray-100 pt-2 bg-white relative">
         <div className="absolute inset-0 w-full h-full" style={{minHeight: '160px'}}>
-            <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                    <Pie
-                        data={chartData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={30}
-                        outerRadius={50}
-                        paddingAngle={5}
-                        dataKey="value"
-                    >
-                        {chartData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                    </Pie>
-                    <Tooltip 
-                        formatter={(value: number) => `${data.currency}${value.toFixed(2)}`}
-                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    />
-                </PieChart>
-            </ResponsiveContainer>
+            {/* Only render Chart if visible to prevent Recharts width(-1) crash */}
+            {isChartVisible && (
+                <ResponsiveContainer width="99%" height="100%">
+                    <PieChart>
+                        <Pie
+                            data={chartData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={30}
+                            outerRadius={50}
+                            paddingAngle={5}
+                            dataKey="value"
+                        >
+                            {chartData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                        </Pie>
+                        <Tooltip 
+                            formatter={(value: number) => `${data.currency}${value.toFixed(2)}`}
+                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                        />
+                    </PieChart>
+                </ResponsiveContainer>
+            )}
         </div>
       </div>
       
       {/* Tip Control Section */}
-      <div className="p-3 bg-gray-50 border-t border-gray-200 text-sm">
+      <div className="p-3 bg-gray-50 border-t border-gray-200 text-sm shrink-0">
         <div className="flex items-center justify-between mb-2">
             <span className="font-semibold text-gray-700 flex items-center gap-1"><Calculator size={14}/> Propina</span>
             <span className="font-mono text-gray-900">{data.currency}{data.tip.toFixed(2)}</span>
@@ -238,7 +254,7 @@ const SummaryPanel: React.FC<Props> = ({ data, onUpdateTip }) => {
         </div>
       </div>
 
-      <div className="p-4 bg-gray-900 text-white flex justify-between items-center rounded-b-xl">
+      <div className="p-4 bg-gray-900 text-white flex justify-between items-center rounded-b-xl shrink-0">
         <span className="text-sm font-medium">Total Final</span>
         <span className="text-xl font-bold">{data.currency}{data.total.toFixed(2)}</span>
       </div>

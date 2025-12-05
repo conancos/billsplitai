@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Camera, Send, Receipt, Plus, Loader2, ImagePlus, X, Eye, Save, Image as ImageIcon, Video, Merge, Trash2, Files } from 'lucide-react';
+import { Camera, Send, Receipt, Plus, Loader2, ImagePlus, X, Eye, Save, Image as ImageIcon, Video, Merge, Trash2, Files, BarChart3, List } from 'lucide-react';
 import { ReceiptData, ChatMessage, ReceiptItem } from './types';
 import * as GeminiService from './services/gemini';
 import ReceiptItemRow from './components/ReceiptItemRow';
@@ -50,7 +50,6 @@ const App: React.FC = () => {
   // Refs
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);   // For Gallery/File Picker
-  const cameraInputRef = useRef<HTMLInputElement>(null); // For Direct Camera Access
   const videoRef = useRef<HTMLVideoElement>(null);       // For Desktop Webcam
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -117,12 +116,11 @@ const App: React.FC = () => {
                 }
             } catch (err: any) {
                 console.error("Processing error:", err);
-                // Check specifically for Quota/429 errors
                 const errorMessage = JSON.stringify(err);
                 if (errorMessage.includes("429") || errorMessage.includes("Quota")) {
-                    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: '⚠️ La IA está ocupada (Límite de cuota excedido). Espera un minuto e intenta de nuevo. También puedes añadir los datos manualmente. ', timestamp: Date.now() }]);
+                    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: '⚠️ La IA está ocupada (Límite de cuota excedido). Espera un minuto e intenta de nuevo.', timestamp: Date.now() }]);
                 } else {
-                    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: 'No pude leer el recibo. Por favor intenta con una foto más clara o revisa tu conexión. También puedes añadir los datos manualmente. ', timestamp: Date.now() }]);
+                    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: 'No pude leer el recibo. Por favor intenta con una foto más clara o revisa tu conexión.', timestamp: Date.now() }]);
                 }
             } finally {
                 setIsAnalyzing(false);
@@ -165,7 +163,7 @@ const App: React.FC = () => {
                   tax: mergedTax,
                   tip: mergedTip,
                   total: mergedSubtotal + mergedTax + mergedTip,
-                  currency: prev.currency // Keep original currency or assume same
+                  currency: prev.currency
               };
           });
           setMessages(prev => [...prev, { 
@@ -215,27 +213,7 @@ const App: React.FC = () => {
     fileInputRef.current?.click();
   };
 
-  const triggerCamera = () => {
-    // Robust detection for mobile devices
-    const isMobileUserAgent = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    const isSmallScreen = window.innerWidth < 1024; // Treat small tablets/phones as mobile
-    
-    if (isMobileUserAgent || isSmallScreen) {
-        // Force click on the hidden capture input
-        if (cameraInputRef.current) {
-            cameraInputRef.current.click();
-        } else {
-            alert("Error al acceder a la cámara nativa.");
-        }
-    } else {
-        // Desktop Webcam Modal
-        setShowWebcam(true);
-        startWebcam();
-    }
-  };
-
-  // --- Webcam Logic (Desktop) ---
-
+  // --- Webcam Logic (Desktop Only) ---
   const startWebcam = async () => {
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -247,7 +225,7 @@ const App: React.FC = () => {
         }
     } catch (err) {
         console.error("Error accessing webcam:", err);
-        alert("No se pudo acceder a la cámara. Asegúrate de dar permisos y usar HTTPS o Localhost.");
+        alert("No se pudo acceder a la cámara. Revisa los permisos.");
         setShowWebcam(false);
     }
   };
@@ -284,7 +262,6 @@ const App: React.FC = () => {
   };
 
   // --- CRUD Operations ---
-
   const openEditModal = (item: ReceiptItem) => {
       setEditModal({ isOpen: true, mode: 'edit', item });
       setEditForm({ 
@@ -303,7 +280,7 @@ const App: React.FC = () => {
       const price = parseFloat(editForm.price);
       const quantity = parseFloat(editForm.quantity);
       
-      if (!editForm.name || isNaN(price) || isNaN(quantity)) return; // Simple validation
+      if (!editForm.name || isNaN(price) || isNaN(quantity)) return;
 
       if (editModal.mode === 'add') {
           const newItem: ReceiptItem = {
@@ -340,18 +317,18 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 text-gray-900">
+    // Use fixed layout with 100dvh for mobile stability
+    <div className="flex flex-col h-[100dvh] bg-gray-50 text-gray-900 w-full overflow-hidden fixed inset-0">
       
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center shadow-sm shrink-0 z-10">
-        <div className="flex items-center gap-2">
-           <div className="bg-indigo-600 p-1.5 rounded-lg">
+      <header className="bg-white border-b border-gray-200 px-4 py-3 flex justify-between items-center shadow-sm shrink-0 z-10 h-16">
+        <div className="flex items-center gap-2 overflow-hidden">
+           <div className="bg-indigo-600 p-1.5 rounded-lg shrink-0">
              <Receipt className="text-white w-5 h-5" />
            </div>
-           {/* Unified Title */}
-           <h1 className="font-bold text-lg tracking-tight text-gray-800">BillSplit<span className="text-indigo-600">AI</span></h1>
+           <h1 className="font-bold text-lg tracking-tight text-gray-800 truncate">BillSplit<span className="text-indigo-600">AI</span></h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 shrink-0">
             {receiptImage && (
                 <button 
                     onClick={() => setShowImageModal(true)}
@@ -362,31 +339,45 @@ const App: React.FC = () => {
                 </button>
             )}
             
-            {/* Gallery Button */}
             <button 
                 onClick={triggerGallery}
                 disabled={isAnalyzing}
                 className="flex items-center gap-2 bg-white text-gray-700 border border-gray-300 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition active:scale-95 disabled:opacity-50"
-                title="Subir desde galería"
             >
                 <ImageIcon className="w-4 h-4" />
                 <span className="hidden sm:inline">Subir</span>
             </button>
 
-            {/* Camera Button */}
+            {/* DESKTOP CAMERA BUTTON (Webcam Modal) - Visible on lg screens */}
             <button 
-                onClick={triggerCamera}
+                onClick={() => { setShowWebcam(true); startWebcam(); }}
                 disabled={isAnalyzing}
-                className="flex items-center gap-2 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition active:scale-95 disabled:opacity-50"
-                title="Hacer foto"
+                className="hidden lg:flex items-center gap-2 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition active:scale-95 disabled:opacity-50"
             >
                 {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-                <span className="hidden sm:inline">Cámara</span>
-                <span className="sm:hidden">Foto</span>
+                <span>Cámara</span>
             </button>
+
+            {/* MOBILE CAMERA LABEL (Native Input) - Visible on sm/md screens */}
+            {/* Using a label triggers the file input immediately without JS restrictions */}
+            <label 
+                className={`lg:hidden flex items-center gap-2 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition active:scale-95 disabled:opacity-50 cursor-pointer ${isAnalyzing ? 'opacity-50 pointer-events-none' : ''}`}
+            >
+                 {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                 <span className="sm:hidden">Foto</span>
+                 <span className="hidden sm:inline">Cámara</span>
+                 <input 
+                    type="file" 
+                    accept="image/*" 
+                    capture="environment"
+                    onChange={handleFileUpload}
+                    disabled={isAnalyzing}
+                    className="hidden"
+                 />
+            </label>
         </div>
         
-        {/* Hidden Inputs */}
+        {/* Gallery Input (Hidden) */}
         <input 
             type="file" 
             ref={fileInputRef} 
@@ -394,55 +385,38 @@ const App: React.FC = () => {
             onChange={handleFileUpload}
             style={{ display: 'none' }} 
         />
-        {/* Important: REMOVED pointerEvents to allow click on mobile */}
-        <input 
-            type="file" 
-            ref={cameraInputRef} 
-            accept="image/*" 
-            capture="environment"
-            onChange={handleFileUpload}
-            style={{ 
-                position: 'absolute', 
-                top: 0, 
-                left: 0, 
-                opacity: 0, 
-                width: '1px', 
-                height: '1px',
-                zIndex: -1
-            }}
-        />
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+      <main className="flex-1 flex flex-col md:flex-row overflow-hidden relative w-full">
         
-        {/* LEFT PANEL */}
-        <div className={`flex-1 flex flex-col min-h-0 bg-white md:border-r md:border-gray-200 transition-all duration-300 ${activeTab === 'receipt' ? 'block' : 'hidden md:block'}`}>
-            <div className="p-3 bg-gray-50/50 border-b border-gray-100 flex justify-between items-center sticky top-0 backdrop-blur-sm z-10">
-                <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wider flex items-center gap-2">
+        {/* LEFT PANEL (Items) */}
+        <div className={`flex-1 flex flex-col min-h-0 bg-white md:border-r md:border-gray-200 transition-all duration-300 ${activeTab === 'receipt' ? 'flex' : 'hidden md:flex'}`}>
+            <div className="p-3 bg-gray-50/50 border-b border-gray-100 flex justify-between items-center sticky top-0 backdrop-blur-sm z-10 shrink-0">
+                <h2 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-2">
                     <Receipt className="w-4 h-4" /> Items ({receiptData.items.length})
                 </h2>
                 <button 
                     onClick={openAddModal} 
-                    className="flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 px-2 py-1 rounded hover:bg-indigo-100 transition"
+                    className="flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-full hover:bg-indigo-100 transition font-medium"
                 >
                     <Plus size={14} /> Añadir
                 </button>
             </div>
             
-            <div className="flex-1 overflow-y-auto overflow-x-hidden">
+            <div className="flex-1 overflow-y-auto overflow-x-hidden p-0">
                 {receiptData.items.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center p-8 text-center text-gray-400">
                         <div className="bg-gray-100 p-6 rounded-full mb-4">
                             <ImagePlus className="w-10 h-10 text-gray-300" />
                         </div>
-                        <p className="max-w-xs text-sm mb-4">Sube una foto del recibo para empezar, o añade artículos manualmente.</p>
+                        <p className="max-w-xs text-sm mb-4">Sube una foto del recibo para empezar.</p>
                         <button onClick={openAddModal} className="text-indigo-600 text-sm font-medium hover:underline">
-                            + Añadir artículo manualmente
+                            + Añadir manual
                         </button>
                     </div>
                 ) : (
-                    <div className="pb-20 md:pb-0">
+                    <div className="pb-4">
                         {receiptData.items.map((item) => (
                             <ReceiptItemRow 
                                 key={item.id} 
@@ -452,7 +426,7 @@ const App: React.FC = () => {
                             />
                         ))}
                         
-                        <div className="p-4 border-t border-gray-100 mt-2 bg-gray-50 space-y-1">
+                        <div className="p-4 border-t border-gray-100 mt-2 bg-gray-50 space-y-1 mx-4 rounded-lg">
                              <div className="flex justify-between text-xs text-gray-500">
                                 <span>Subtotal</span>
                                 <span>{receiptData.currency}{receiptData.subtotal.toFixed(2)}</span>
@@ -465,47 +439,55 @@ const App: React.FC = () => {
                                 <span>Propina</span>
                                 <span>{receiptData.currency}{receiptData.tip.toFixed(2)}</span>
                              </div>
+                             <div className="flex justify-between text-sm font-bold text-gray-800 pt-2 border-t border-gray-200">
+                                <span>Total</span>
+                                <span>{receiptData.currency}{receiptData.total.toFixed(2)}</span>
+                             </div>
                         </div>
                     </div>
                 )}
             </div>
         </div>
 
-        {/* RIGHT PANEL */}
-        <div className={`flex-1 flex flex-col min-h-0 bg-gray-50 transition-all duration-300 ${activeTab === 'summary' ? 'block' : 'hidden md:block'}`}>
-             <div className="h-full p-4 overflow-hidden">
+        {/* RIGHT PANEL (Summary) */}
+        <div className={`flex-1 flex flex-col min-h-0 bg-gray-50 transition-all duration-300 ${activeTab === 'summary' ? 'flex' : 'hidden md:flex'}`}>
+             <div className="h-full p-2 md:p-4 overflow-hidden">
                 <SummaryPanel data={receiptData} onUpdateTip={updateTip} />
              </div>
         </div>
 
-        {/* Mobile Tab Switcher */}
-        <div className="md:hidden absolute top-2 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur shadow-lg rounded-full p-1 flex items-center gap-1 border border-gray-200 z-20">
-            <button 
-                onClick={() => setActiveTab('receipt')}
-                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${activeTab === 'receipt' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-            >
-                Items
-            </button>
-            <button 
-                onClick={() => setActiveTab('summary')}
-                className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors ${activeTab === 'summary' ? 'bg-indigo-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-            >
-                Resumen
-            </button>
-        </div>
-
       </main>
 
+      {/* Mobile Tab Bar (Bottom) - Moved here to prevent header issues */}
+      <div className="md:hidden bg-white border-t border-gray-200 flex justify-around p-1 shrink-0 z-20">
+          <button 
+              onClick={() => setActiveTab('receipt')}
+              className={`flex-1 flex flex-col items-center justify-center py-2 text-[10px] font-medium transition-colors ${activeTab === 'receipt' ? 'text-indigo-600' : 'text-gray-400'}`}
+          >
+              <List size={20} className="mb-1" />
+              Items
+          </button>
+          <div className="w-px bg-gray-100 my-1"></div>
+          <button 
+              onClick={() => setActiveTab('summary')}
+              className={`flex-1 flex flex-col items-center justify-center py-2 text-[10px] font-medium transition-colors ${activeTab === 'summary' ? 'text-indigo-600' : 'text-gray-400'}`}
+          >
+              <BarChart3 size={20} className="mb-1" />
+              Resumen
+          </button>
+      </div>
+
       {/* Chat Interface */}
-      <div className="bg-white border-t border-gray-200 shrink-0 z-30">
-        <div className="h-32 md:h-48 overflow-y-auto p-4 space-y-3 bg-gray-50/50">
+      <div className="bg-white border-t border-gray-200 shrink-0 z-30 safe-area-bottom">
+        {/* Chat History */}
+        <div className="h-28 md:h-40 overflow-y-auto p-3 space-y-2 bg-gray-50">
             {messages.map((msg) => (
                 <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[85%] rounded-2xl px-4 py-2 text-sm shadow-sm ${
+                    <div className={`max-w-[85%] rounded-2xl px-3 py-1.5 text-xs md:text-sm shadow-sm ${
                         msg.role === 'user' 
                         ? 'bg-indigo-600 text-white rounded-br-none' 
                         : msg.role === 'system'
-                        ? 'bg-gray-200 text-gray-600 text-xs py-1 px-3'
+                        ? 'bg-gray-200 text-gray-600 text-[10px] py-1 px-2 mx-auto'
                         : 'bg-white border border-gray-100 text-gray-800 rounded-bl-none'
                     }`}>
                         {msg.text}
@@ -515,52 +497,41 @@ const App: React.FC = () => {
             <div ref={chatEndRef} />
         </div>
 
-        <div className="p-3 bg-white">
+        {/* Chat Input */}
+        <div className="p-2 md:p-3 bg-white">
             <div className="relative flex items-center gap-2">
                 <input
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyPress}
-                    placeholder={receiptData.items.length === 0 ? "Sube un recibo o añade items..." : "Ej: 'Emilia pidió la pizza', 'Pepe y Ana comparten vino'"}
+                    placeholder={receiptData.items.length === 0 ? "Sube un recibo..." : "Ej: 'Emilia pagó la pizza'"}
                     disabled={receiptData.items.length === 0 || isProcessingChat}
-                    className="flex-1 bg-gray-100 border-0 rounded-full px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 bg-gray-100 border-0 rounded-full px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all disabled:opacity-50"
                 />
                 <button 
                     onClick={handleSendMessage}
                     disabled={!input.trim() || isProcessingChat || receiptData.items.length === 0}
-                    className="bg-indigo-600 text-white p-3 rounded-full hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors shadow-sm"
+                    className="bg-indigo-600 text-white p-2.5 rounded-full hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm shrink-0"
                 >
-                    {isProcessingChat ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                    {isProcessingChat ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-4 h-4" />}
                 </button>
             </div>
         </div>
       </div>
 
+      {/* --- MODALS --- */}
+      
       {/* WEBCAM MODAL (Desktop) */}
       {showWebcam && (
           <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4">
               <div className="relative w-full max-w-2xl bg-black rounded-lg overflow-hidden shadow-2xl border border-gray-800">
                   <video ref={videoRef} autoPlay playsInline className="w-full h-auto bg-black" />
-                  
                   <div className="absolute bottom-6 left-0 right-0 flex justify-center items-center gap-6">
-                      <button 
-                          onClick={closeWebcam}
-                          className="p-3 bg-red-600/80 hover:bg-red-600 text-white rounded-full transition-all"
-                          title="Cancelar"
-                      >
-                          <X size={24} />
-                      </button>
-                      <button 
-                          onClick={captureWebcam}
-                          className="p-4 bg-white text-black rounded-full hover:scale-105 transition-all shadow-lg border-4 border-gray-300"
-                          title="Capturar Foto"
-                      >
-                          <div className="w-6 h-6 bg-black rounded-full"></div>
-                      </button>
+                      <button onClick={closeWebcam} className="p-3 bg-red-600/80 text-white rounded-full"><X size={24} /></button>
+                      <button onClick={captureWebcam} className="p-4 bg-white rounded-full border-4 border-gray-300"><div className="w-6 h-6 bg-black rounded-full"></div></button>
                   </div>
               </div>
-              <p className="text-white mt-4 text-sm opacity-70">Asegura que el recibo esté bien iluminado</p>
           </div>
       )}
 
@@ -568,106 +539,43 @@ const App: React.FC = () => {
       {showImageModal && receiptImage && (
           <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setShowImageModal(false)}>
               <div className="relative max-w-full max-h-full">
-                  <button onClick={() => setShowImageModal(false)} className="absolute -top-10 right-0 text-white p-2">
-                      <X size={24} />
-                  </button>
-                  <img src={receiptImage} alt="Original Receipt" className="max-w-full max-h-[85vh] rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} />
+                  <button onClick={() => setShowImageModal(false)} className="absolute -top-10 right-0 text-white p-2"><X size={24} /></button>
+                  <img src={receiptImage} alt="Receipt" className="max-w-full max-h-[85vh] rounded-lg shadow-2xl" onClick={(e) => e.stopPropagation()} />
               </div>
           </div>
       )}
 
-      {/* MERGE RECEIPTS MODAL */}
+      {/* MERGE MODAL */}
       {mergeModal.isOpen && mergeModal.newData && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-              <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 text-center" onClick={(e) => e.stopPropagation()}>
-                  <div className="mx-auto w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-4">
-                      <Files size={24} />
-                  </div>
+              <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 text-center">
+                  <div className="mx-auto w-12 h-12 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mb-4"><Files size={24} /></div>
                   <h3 className="text-xl font-bold text-gray-900 mb-2">¿Más tickets?</h3>
-                  <p className="text-gray-500 text-sm mb-6">
-                      Has escaneado otro recibo con {mergeModal.newData.items.length} artículos.
-                      ¿Quieres añadirlos a la cuenta actual o empezar una nueva?
-                  </p>
-                  
-                  <div className="grid grid-cols-1 gap-3">
-                      <button 
-                          onClick={() => handleMergeOption('merge')}
-                          className="w-full py-3 px-4 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 flex items-center justify-center gap-2 shadow-sm"
-                      >
-                          <Merge size={18} />
-                          Añadir a cuenta actual
-                      </button>
-                      
-                      <button 
-                          onClick={() => handleMergeOption('replace')}
-                          className="w-full py-3 px-4 bg-white text-red-600 font-medium rounded-lg border border-gray-200 hover:bg-red-50 flex items-center justify-center gap-2"
-                      >
-                          <Trash2 size={18} />
-                          Borrar anterior y empezar nuevo
-                      </button>
-
-                      <button 
-                           onClick={() => setMergeModal({isOpen: false, newData: null})}
-                           className="text-gray-400 text-xs font-medium hover:text-gray-600 mt-2"
-                      >
-                          Cancelar operación
-                      </button>
+                  <p className="text-gray-500 text-sm mb-6">¿Quieres añadir estos items a la cuenta actual o empezar nueva?</p>
+                  <div className="grid gap-3">
+                      <button onClick={() => handleMergeOption('merge')} className="w-full py-3 px-4 bg-indigo-600 text-white rounded-lg flex justify-center gap-2"><Merge size={18} /> Añadir a actual</button>
+                      <button onClick={() => handleMergeOption('replace')} className="w-full py-3 px-4 bg-white text-red-600 border border-gray-200 rounded-lg flex justify-center gap-2"><Trash2 size={18} /> Borrar y empezar nueva</button>
+                      <button onClick={() => setMergeModal({isOpen: false, newData: null})} className="text-gray-400 text-xs mt-2">Cancelar</button>
                   </div>
               </div>
           </div>
       )}
 
-      {/* EDIT/ADD ITEM MODAL */}
+      {/* EDIT MODAL */}
       {editModal.isOpen && (
           <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-              <div className="bg-white rounded-xl shadow-xl w-full max-w-xs p-5" onClick={(e) => e.stopPropagation()}>
-                  <h3 className="text-lg font-bold text-gray-800 mb-4">{editModal.mode === 'add' ? 'Añadir Artículo' : 'Editar Artículo'}</h3>
+              <div className="bg-white rounded-xl shadow-xl w-full max-w-xs p-5">
+                  <h3 className="text-lg font-bold text-gray-800 mb-4">{editModal.mode === 'add' ? 'Añadir' : 'Editar'}</h3>
                   <div className="space-y-3">
-                      <div>
-                          <label className="block text-xs font-medium text-gray-500 mb-1">Nombre</label>
-                          <input 
-                              type="text" 
-                              className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                              value={editForm.name}
-                              onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-                          />
-                      </div>
-                      <div className="flex gap-3">
-                          <div className="flex-1">
-                              <label className="block text-xs font-medium text-gray-500 mb-1">Precio Total</label>
-                              <input 
-                                  type="number" 
-                                  step="0.01"
-                                  className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                                  value={editForm.price}
-                                  onChange={(e) => setEditForm({...editForm, price: e.target.value})}
-                              />
-                          </div>
-                          <div className="w-20">
-                              <label className="block text-xs font-medium text-gray-500 mb-1">Cant.</label>
-                              <input 
-                                  type="number" 
-                                  step="1"
-                                  className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                                  value={editForm.quantity}
-                                  onChange={(e) => setEditForm({...editForm, quantity: e.target.value})}
-                              />
-                          </div>
+                      <input type="text" placeholder="Nombre" className="w-full border p-2 rounded text-sm" value={editForm.name} onChange={(e) => setEditForm({...editForm, name: e.target.value})} />
+                      <div className="flex gap-2">
+                          <input type="number" placeholder="Precio" className="flex-1 border p-2 rounded text-sm" value={editForm.price} onChange={(e) => setEditForm({...editForm, price: e.target.value})} />
+                          <input type="number" placeholder="Cant." className="w-20 border p-2 rounded text-sm" value={editForm.quantity} onChange={(e) => setEditForm({...editForm, quantity: e.target.value})} />
                       </div>
                   </div>
                   <div className="flex gap-2 mt-6">
-                      <button 
-                          onClick={() => setEditModal({ ...editModal, isOpen: false })}
-                          className="flex-1 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200"
-                      >
-                          Cancelar
-                      </button>
-                      <button 
-                          onClick={handleSaveItem}
-                          className="flex-1 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 flex justify-center items-center gap-2"
-                      >
-                          <Save size={16} /> Guardar
-                      </button>
+                      <button onClick={() => setEditModal({ ...editModal, isOpen: false })} className="flex-1 py-2 bg-gray-100 rounded text-sm">Cancelar</button>
+                      <button onClick={handleSaveItem} className="flex-1 py-2 bg-indigo-600 text-white rounded text-sm flex justify-center items-center gap-2"><Save size={16} /> Guardar</button>
                   </div>
               </div>
           </div>
