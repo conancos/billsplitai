@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, Send, Receipt, Plus, Loader2, ImagePlus, X, Eye, Save, Image as ImageIcon, Video, Merge, Trash2, Files, BarChart3, List } from 'lucide-react';
 import { ReceiptData, ChatMessage, ReceiptItem } from './types';
@@ -328,7 +329,7 @@ const App: React.FC = () => {
            </div>
            <h1 className="font-bold text-lg tracking-tight text-gray-800 truncate">BillSplit<span className="text-indigo-600">AI</span></h1>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex gap-2 shrink-0 items-center">
             {receiptImage && (
                 <button 
                     onClick={() => setShowImageModal(true)}
@@ -358,25 +359,23 @@ const App: React.FC = () => {
                 <span>Cámara</span>
             </button>
 
-            {/* MOBILE CAMERA BUTTON (Semantic Label Technique) - Visible on sm/md screens */}
-            {/* Using a label with a nested file input ensures native click handling without JS */}
-            <label className={`lg:hidden flex items-center gap-2 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm font-medium transition active:scale-95 cursor-pointer ${isAnalyzing ? 'opacity-50 pointer-events-none' : ''}`}>
-                 {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-                 <span className="sm:hidden">Foto</span>
-                 <span className="hidden sm:inline">Cámara</span>
-                 {/* Input is visually hidden but NOT display:none, to ensure accessibility and touch events work */}
-                 <input 
+            {/* MOBILE CAMERA: STANDARD LABEL WITH CAPTURE ATTRIBUTE */}
+            <label className={`lg:hidden flex items-center gap-2 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm font-medium active:scale-95 transition-transform cursor-pointer ${isAnalyzing ? 'opacity-50 pointer-events-none' : ''}`}>
+                {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                <span>Foto</span>
+                <input 
                     type="file" 
                     accept="image/*"
-                    capture="environment"
+                    capture="environment" // Forces direct camera launch on mobile
                     onChange={handleFileUpload}
-                    className="w-0 h-0 opacity-0 overflow-hidden absolute"
                     disabled={isAnalyzing}
-                 />
+                    className="hidden" // Uses Tailwind's display:none, but works within label on most modern devices
+                    style={{ display: 'none' }} // Explicit inline style fallback
+                />
             </label>
         </div>
         
-        {/* Gallery Input (Hidden) - Only used by the "Subir" button */}
+        {/* Hidden Gallery Input (triggered by ref for desktop/secondary) */}
         <input 
             type="file" 
             ref={fileInputRef} 
