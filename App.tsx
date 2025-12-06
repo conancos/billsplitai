@@ -50,7 +50,7 @@ const App: React.FC = () => {
   // Refs
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);   // For Gallery
-  const mobileInputRef = useRef<HTMLInputElement>(null); // For Mobile Camera
+  // mobileInputRef REMOVED: using ghost input technique instead
   const videoRef = useRef<HTMLVideoElement>(null);       // For Desktop Webcam
   const streamRef = useRef<MediaStream | null>(null);
 
@@ -214,10 +214,6 @@ const App: React.FC = () => {
     fileInputRef.current?.click();
   };
 
-  const triggerMobileCamera = () => {
-    mobileInputRef.current?.click();
-  };
-
   // --- Webcam Logic (Desktop Only) ---
   const startWebcam = async () => {
     try {
@@ -363,17 +359,24 @@ const App: React.FC = () => {
                 <span>Cámara</span>
             </button>
 
-            {/* MOBILE CAMERA BUTTON (Native Trigger) - Visible on sm/md screens */}
-            {/* Switched back to button + ref click for reliability outside iframes */}
-            <button 
-                onClick={triggerMobileCamera}
-                disabled={isAnalyzing}
-                className="lg:hidden flex items-center gap-2 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-800 transition active:scale-95 disabled:opacity-50"
-            >
-                 {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
-                 <span className="sm:hidden">Foto</span>
-                 <span className="hidden sm:inline">Cámara</span>
-            </button>
+            {/* MOBILE CAMERA BUTTON (Ghost Input Technique) - Visible on sm/md screens */}
+            {/* The input covers the visual button completely with opacity 0, guaranteeing native touch interaction */}
+            <div className={`lg:hidden relative group ${isAnalyzing ? 'opacity-50' : ''}`}>
+                <div className="flex items-center gap-2 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm font-medium transition active:scale-95 pointer-events-none">
+                     {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                     <span className="sm:hidden">Foto</span>
+                     <span className="hidden sm:inline">Cámara</span>
+                </div>
+                {!isAnalyzing && (
+                    <input 
+                        type="file" 
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handleFileUpload}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50"
+                    />
+                )}
+            </div>
         </div>
         
         {/* Gallery Input (Hidden) */}
@@ -383,23 +386,6 @@ const App: React.FC = () => {
             accept="image/*" 
             onChange={handleFileUpload}
             style={{ display: 'none' }} 
-        />
-        {/* Mobile Camera Input (Hidden but accessible) */}
-        <input 
-            type="file" 
-            ref={mobileInputRef}
-            accept="image/*"
-            capture="environment"
-            onChange={handleFileUpload}
-            style={{ 
-                opacity: 0, 
-                position: 'absolute', 
-                zIndex: -1, 
-                width: '1px', 
-                height: '1px',
-                top: 0,
-                left: 0
-            }}
         />
       </header>
 
