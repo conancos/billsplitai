@@ -391,7 +391,15 @@ const App: React.FC = () => {
             accept="image/*"
             capture="environment"
             onChange={handleFileUpload}
-            style={{ display: 'none' }}
+            style={{ 
+                opacity: 0, 
+                position: 'absolute', 
+                zIndex: -1, 
+                width: '1px', 
+                height: '1px',
+                top: 0,
+                left: 0
+            }}
         />
       </header>
 
