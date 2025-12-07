@@ -118,10 +118,14 @@ const App: React.FC = () => {
             } catch (err: any) {
                 console.error("Processing error:", err);
                 const errorMessage = JSON.stringify(err);
+                const errorStr = err.toString().toLowerCase();
+
                 if (errorMessage.includes("429") || errorMessage.includes("Quota")) {
                     setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: '⚠️ La IA está ocupada (Límite de cuota excedido). Espera un minuto e intenta de nuevo.', timestamp: Date.now() }]);
+                } else if (errorMessage.includes("400") || errorMessage.includes("403") || errorStr.includes("key") || errorStr.includes("permission")) {
+                    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: '🔒 Error de API Key. Asegúrate de haber configurado la variable GEMINI_API_KEY correctamente en Netlify/Local.', timestamp: Date.now() }]);
                 } else {
-                    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: 'No pude leer el recibo. Por favor intenta con una foto más clara o revisa tu conexión.', timestamp: Date.now() }]);
+                    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: '❌ No pude leer el recibo. Revisa tu conexión a internet o intenta otra foto.', timestamp: Date.now() }]);
                 }
             } finally {
                 setIsAnalyzing(false);
