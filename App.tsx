@@ -359,19 +359,13 @@ const App: React.FC = () => {
                 <span>Cámara</span>
             </button>
 
-            {/* MOBILE CAMERA: STANDARD LABEL WITH CAPTURE ATTRIBUTE */}
-            <label className={`lg:hidden flex items-center gap-2 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm font-medium active:scale-95 transition-transform cursor-pointer ${isAnalyzing ? 'opacity-50 pointer-events-none' : ''}`}>
+            {/* MOBILE CAMERA: LABEL POINTING TO EXTERNAL INPUT */}
+            <label 
+                htmlFor="mobile-camera-input"
+                className={`lg:hidden flex items-center gap-2 bg-gray-900 text-white px-3 py-2 rounded-lg text-sm font-medium active:scale-95 transition-transform cursor-pointer ${isAnalyzing ? 'opacity-50 pointer-events-none' : ''}`}
+            >
                 {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
                 <span>Foto</span>
-                <input 
-                    type="file" 
-                    accept="image/*"
-                    capture="environment" // Forces direct camera launch on mobile
-                    onChange={handleFileUpload}
-                    disabled={isAnalyzing}
-                    className="hidden" // Uses Tailwind's display:none, but works within label on most modern devices
-                    style={{ display: 'none' }} // Explicit inline style fallback
-                />
             </label>
         </div>
         
@@ -382,6 +376,31 @@ const App: React.FC = () => {
             accept="image/*" 
             onChange={handleFileUpload}
             style={{ display: 'none' }} 
+        />
+        
+        {/* EXTERNAL MOBILE CAMERA INPUT 
+            Key features:
+            1. Outside label (linked by ID)
+            2. No 'display: none' (uses clip path technique for accessibility/visibility)
+            3. capture="environment" for camera
+        */}
+        <input 
+            id="mobile-camera-input"
+            type="file" 
+            accept="image/*"
+            capture="environment"
+            onChange={handleFileUpload}
+            disabled={isAnalyzing}
+            style={{ 
+                position: 'absolute', 
+                width: '1px', 
+                height: '1px', 
+                padding: 0, 
+                margin: '-1px', 
+                overflow: 'hidden', 
+                clip: 'rect(0,0,0,0)', 
+                border: 0 
+            }}
         />
       </header>
 
