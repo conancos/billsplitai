@@ -85,7 +85,7 @@ const App: React.FC = () => {
     processImageFile(file);
   };
 
-  const processImageFile = (file: File | Blob) => {
+ const processImageFile = (file: File | Blob) => {
     setIsAnalyzing(true);
     setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: 'Analizando recibo... Esto puede tardar un momento.', timestamp: Date.now() }]);
 
@@ -97,7 +97,15 @@ const App: React.FC = () => {
             setReceiptImage(reader.result); // Store for viewing later
             
             try {
-                const newData = await GeminiService.analyzeReceiptImage(base64String);
+                // ==== CAMBIO AQUÍ: Llamada al proxy Netlify ====
+                const res = await fetch('/.netlify/functions/geminiProxy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ imageBase64: base64String })
+                });
+                if (!res.ok) throw new Error('Error en el proxy Gemini');
+
+                const newData = await res.json();
                 
                 // Add ScanID to new items to track batches
                 const scanId = `scan-${Date.now()}`;
@@ -123,7 +131,7 @@ const App: React.FC = () => {
                 if (errorMessage.includes("429") || errorMessage.includes("Quota")) {
                     setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: '⚠️ La IA está ocupada (Límite de cuota excedido). Espera un minuto e intenta de nuevo.', timestamp: Date.now() }]);
                 } else if (errorMessage.includes("400") || errorMessage.includes("403") || errorStr.includes("key") || errorStr.includes("permission")) {
-                    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: '🔒 Error de API Key. Asegúrate de haber configurado la variable GEMINI_API_KEY correctamente en Netlify/Local.', timestamp: Date.now() }]);
+                    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: '🔒 Error de API Key. La clave ahora se gestiona desde Netlify, revisa tu variable GEMINI_API_KEY.', timestamp: Date.now() }]);
                 } else {
                     setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: '❌ No pude leer el recibo. Revisa tu conexión a internet o intenta otra foto.', timestamp: Date.now() }]);
                 }
@@ -139,84 +147,93 @@ const App: React.FC = () => {
     }
   };
 
-  const applyNewReceiptData = (data: ReceiptData) => {
-      setReceiptData(data);
-      setMessages(prev => [...prev, { 
-          id: Date.now().toString(), 
-          role: 'model', 
-          text: `¡Recibo listo! He encontrado ${data.items.length} artículos. El total es ${data.currency}${data.total}. Ahora dime quién pidió qué.`, 
-          timestamp: Date.now() 
-      }]);
-  };
+const applyNewReceiptData = (data: ReceiptData) => {
+    setReceiptData(data);
+    setMessages(prev => [...prev, { 
+        id: Date.now().toString(), 
+        role: 'model', 
+        text: `¡Recibo listo! He encontrado ${data.items.length} artículos. El total es ${data.currency}${data.total}. Ahora dime quién pidió qué.`, 
+        timestamp: Date.now() 
+    }]);
+};
 
-  const handleMergeOption = (option: 'merge' | 'replace') => {
-      if (!mergeModal.newData) return;
+const handleMergeOption = (option: 'merge' | 'replace') => {
+    if (!mergeModal.newData) return;
 
-      if (option === 'replace') {
-          applyNewReceiptData(mergeModal.newData);
-      } else {
-          // Merge Logic
-          setReceiptData(prev => {
-              const mergedItems = [...prev.items, ...(mergeModal.newData!.items)];
-              const mergedSubtotal = prev.subtotal + mergeModal.newData!.subtotal;
-              const mergedTax = prev.tax + mergeModal.newData!.tax;
-              const mergedTip = prev.tip + mergeModal.newData!.tip;
-              
-              return {
-                  items: mergedItems,
-                  subtotal: mergedSubtotal,
-                  tax: mergedTax,
-                  tip: mergedTip,
-                  total: mergedSubtotal + mergedTax + mergedTip,
-                  currency: prev.currency
-              };
-          });
-          setMessages(prev => [...prev, { 
-              id: Date.now().toString(), 
-              role: 'model', 
-              text: `He añadido ${mergeModal.newData.items.length} artículos a la cuenta existente.`, 
-              timestamp: Date.now() 
-          }]);
-      }
-      setMergeModal({ isOpen: false, newData: null });
-  };
-
-  const handleSendMessage = async () => {
-    if (!input.trim() || isProcessingChat || receiptData.items.length === 0) return;
-
-    const userText = input;
-    setInput('');
-    setIsProcessingChat(true);
-
-    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', text: userText, timestamp: Date.now() }]);
-
-    try {
-      const result = await GeminiService.processSplitCommand(receiptData.items, userText);
-      
-      setReceiptData(prev => {
-        const newItems = prev.items.map(item => {
-           const update = result.updatedItems.find((u: any) => u.id === item.id);
-           return update ? { ...item, assignedTo: update.assignedTo } : item;
+    if (option === 'replace') {
+        applyNewReceiptData(mergeModal.newData);
+    } else {
+        // Merge Logic
+        setReceiptData(prev => {
+            const mergedItems = [...prev.items, ...(mergeModal.newData!.items)];
+            const mergedSubtotal = prev.subtotal + mergeModal.newData!.subtotal;
+            const mergedTax = prev.tax + mergeModal.newData!.tax;
+            const mergedTip = prev.tip + mergeModal.newData!.tip;
+            
+            return {
+                items: mergedItems,
+                subtotal: mergedSubtotal,
+                tax: mergedTax,
+                tip: mergedTip,
+                total: mergedSubtotal + mergedTax + mergedTip,
+                currency: prev.currency
+            };
         });
-        return { ...prev, items: newItems };
-      });
-
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: result.message, timestamp: Date.now() }]);
-
-    } catch (error) {
-       setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: 'Lo siento, tuve problemas para entender ese comando.', timestamp: Date.now() }]);
-    } finally {
-      setIsProcessingChat(false);
+        setMessages(prev => [...prev, { 
+            id: Date.now().toString(), 
+            role: 'model', 
+            text: `He añadido ${mergeModal.newData.items.length} artículos a la cuenta existente.`, 
+            timestamp: Date.now() 
+        }]);
     }
-  };
+    setMergeModal({ isOpen: false, newData: null });
+};
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') handleSendMessage();
-  };
+const handleSendMessage = async () => {
+  if (!input.trim() || isProcessingChat || receiptData.items.length === 0) return;
 
-  const triggerGallery = () => {
-    fileInputRef.current?.click();
-  };
+  const userText = input;
+  setInput('');
+  setIsProcessingChat(true);
+
+  setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', text: userText, timestamp: Date.now() }]);
+
+  try {
+    // ==== CAMBIO AQUÍ: Llamada al proxy Netlify ====
+    const res = await fetch('/.netlify/functions/geminiProxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: receiptData.items, message: userText })
+    });
+    if (!res.ok) throw new Error('Error en el proxy Gemini');
+
+    const result = await res.json();
+
+    setReceiptData(prev => {
+      const newItems = prev.items.map(item => {
+         const update = result.updatedItems.find((u: any) => u.id === item.id);
+         return update ? { ...item, assignedTo: update.assignedTo } : item;
+      });
+      return { ...prev, items: newItems };
+    });
+
+    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', text: result.message, timestamp: Date.now() }]);
+
+  } catch (error) {
+     setMessages(prev => [...prev, { id: Date.now().toString(), role: 'system', text: 'Lo siento, tuve problemas para entender ese comando.', timestamp: Date.now() }]);
+  } finally {
+    setIsProcessingChat(false);
+  }
+};
+
+const handleKeyPress = (e: React.KeyboardEvent) => {
+  if (e.key === 'Enter') handleSendMessage();
+};
+
+const triggerGallery = () => {
+  fileInputRef.current?.click();
+};
+
 
   // --- Webcam Logic (Desktop Only) ---
   const startWebcam = async () => {
