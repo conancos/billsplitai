@@ -51,6 +51,7 @@ const handler: Handler = async (event) => {
       console.error(text)
       return { statusCode: res.status, body: text }
     }
+    console.log("Gemini raw response:", JSON.stringify(text, null, 2));
 
     return { statusCode: 200, body: JSON.stringify(text) }
 
