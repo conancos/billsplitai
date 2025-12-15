@@ -1,48 +1,62 @@
-import type { Handler } from '@netlify/functions';
-import fetch from 'node-fetch';
+import type { Handler } from '@netlify/functions'
+import fetch from 'node-fetch'
 
 const handler: Handler = async (event) => {
+
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
+    return { statusCode: 405, body: 'Method Not Allowed' }
+  }
+
+  if (!process.env.GEMINI_API_KEY) {
+    return { statusCode: 500, body: 'Missing API key' }
   }
 
   try {
-    const body = JSON.parse(event.body || '{}');
-    const { imageBase64, message, items } = body;
+    const body = JSON.parse(event.body || '{}')
+    const { imageBase64, message } = body
 
-    // Validación básica
-    if (!imageBase64 && (!message || !items)) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Debe enviar imageBase64 o (message + items)' }) };
+    if (!imageBase64) {
+      return { statusCode: 400, body: 'Missing imageBase64' }
     }
 
-    // Construir payload para Gemini
-    const payload: any = {};
-    if (imageBase64) payload.imageBase64 = imageBase64;
-    if (message) payload.message = message;
-    if (items) payload.items = items;
-
-    // Llamada a Gemini con API Key segura de Netlify
-    const response = await fetch('https://api.gemini.com/analyze', { // Ajusta la URL real
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.GEMINI_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      return { statusCode: response.status, body: JSON.stringify({ error: text }) };
+    const payload = {
+      contents: [
+        {
+          parts: [
+            { text: message || 'Analiza esta imagen' },
+            {
+              inlineData: {
+                mimeType: 'image/jpeg',
+                data: imageBase64.replace(/^data:image\/\w+;base64,/, '')
+              }
+            }
+          ]
+        }
+      ]
     }
 
-    const data = await response.json();
-    return { statusCode: 200, body: JSON.stringify(data) };
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }
+    )
+
+    const text = await res.text()
+
+    if (!res.ok) {
+      console.error(text)
+      return { statusCode: res.status, body: text }
+    }
+
+    return { statusCode: 200, body: text }
 
   } catch (err: any) {
-    console.error('Error en geminiProxy:', err);
-    return { statusCode: 500, body: JSON.stringify({ error: err.message || 'Error desconocido' }) };
+    console.error(err)
+    return { statusCode: 500, body: err.message }
   }
-};
+}
 
-export { handler };
+export { handler }
