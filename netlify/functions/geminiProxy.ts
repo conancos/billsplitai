@@ -2,7 +2,7 @@ import type { Handler } from '@netlify/functions'
 import fetch from 'node-fetch'
 
 const handler: Handler = async (event) => {
-  console.log("API KEY EXISTS:", !!process.env.GEMINI_API_KEY)
+  console.log('API KEY EXISTS:', !!process.env.GEMINI_API_KEY)
 
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' }
@@ -14,7 +14,7 @@ const handler: Handler = async (event) => {
 
   try {
     const body = JSON.parse(event.body || '{}')
-    const { imageBase64, message } = body
+    const { imageBase64 } = body
 
     if (!imageBase64) {
       return { statusCode: 400, body: 'Missing imageBase64' }
@@ -24,7 +24,22 @@ const handler: Handler = async (event) => {
       contents: [
         {
           parts: [
-            { text: message || 'Analiza esta imagen' },
+            {
+              text: `
+Analiza este recibo y DEVUELVE SOLO JSON válido con este formato exacto:
+{
+  "items": [
+    { "id": "1", "name": "Producto", "price": 5.99 }
+  ],
+  "subtotal": 0,
+  "tax": 0,
+  "tip": 0,
+  "total": 0,
+  "currency": "€"
+}
+NO incluyas texto fuera del JSON.
+`
+            },
             {
               inlineData: {
                 mimeType: 'image/jpeg',
@@ -45,18 +60,24 @@ const handler: Handler = async (event) => {
       }
     )
 
-    const text = await res.text()
+    const data = await res.json()
+    console.log('Gemini raw:', JSON.stringify(data, null, 2))
 
-    if (!res.ok) {
-      console.error(text)
-      return { statusCode: res.status, body: text }
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+
+    if (!text) {
+      return { statusCode: 500, body: 'Invalid Gemini response' }
     }
-    console.log("Gemini raw response:", JSON.stringify(text, null, 2));
 
-    return { statusCode: 200, body: JSON.stringify(text) }
+    const parsed = JSON.parse(text)
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify(parsed)
+    }
 
   } catch (err: any) {
-    console.error(err)
+    console.error('Proxy error:', err)
     return { statusCode: 500, body: err.message }
   }
 }
