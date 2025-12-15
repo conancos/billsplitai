@@ -2,6 +2,7 @@ import type { Handler } from '@netlify/functions'
 import fetch from 'node-fetch'
 
 const handler: Handler = async (event) => {
+  console.log("API KEY EXISTS:", !!process.env.GEMINI_API_KEY)
 
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' }
