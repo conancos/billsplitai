@@ -12,6 +12,16 @@ type GeminiResponse = {
   }
 }
 
+// 🔧 Helper: extrae JSON aunque venga envuelto en ```json
+function extractJson(text: string) {
+  const cleaned = text
+    .replace(/```json/gi, '')
+    .replace(/```/g, '')
+    .trim()
+
+  return JSON.parse(cleaned)
+}
+
 const handler: Handler = async (event) => {
   console.log('API KEY EXISTS:', !!process.env.GEMINI_API_KEY)
 
@@ -97,10 +107,10 @@ NO incluyas texto fuera del JSON.
       }
     }
 
-    // 🔒 Blindaje 3: JSON válido
+    // 🔒 Blindaje 3: saneado + JSON real
     let parsed
     try {
-      parsed = JSON.parse(text)
+      parsed = extractJson(text)
     } catch (e) {
       console.error('Gemini returned non-JSON:', text)
       return {
