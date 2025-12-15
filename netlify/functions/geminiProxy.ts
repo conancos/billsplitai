@@ -52,7 +52,7 @@ const handler: Handler = async (event) => {
       return { statusCode: res.status, body: text }
     }
 
-    return { statusCode: 200, body: text }
+    return { statusCode: 200, body: JSON.stringify(text) }
 
   } catch (err: any) {
     console.error(err)
