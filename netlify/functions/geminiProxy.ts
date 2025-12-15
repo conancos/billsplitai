@@ -1,6 +1,17 @@
 import type { Handler } from '@netlify/functions'
 import fetch from 'node-fetch'
 
+type GeminiResponse = {
+  candidates?: {
+    content?: {
+      parts?: { text?: string }[]
+    }
+  }[]
+  error?: {
+    message?: string
+  }
+}
+
 const handler: Handler = async (event) => {
   console.log('API KEY EXISTS:', !!process.env.GEMINI_API_KEY)
 
@@ -60,16 +71,43 @@ NO incluyas texto fuera del JSON.
       }
     )
 
-    const data = await res.json()
-    console.log('Gemini raw:', JSON.stringify(data, null, 2))
-
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
-
-    if (!text) {
-      return { statusCode: 500, body: 'Invalid Gemini response' }
+    // 🔒 Blindaje 1: error HTTP explícito
+    if (!res.ok) {
+      const errText = await res.text()
+      console.error('Gemini HTTP error:', res.status, errText)
+      return {
+        statusCode: 502,
+        body: 'Gemini API error'
+      }
     }
 
-    const parsed = JSON.parse(text)
+    const data = (await res.json()) as GeminiResponse
+
+    // 🔒 Blindaje 2: estructura esperada
+    const text =
+      data?.candidates?.[0]?.content?.parts
+        ?.map(p => p.text)
+        .join('')
+
+    if (!text) {
+      console.error('Invalid Gemini structure:', JSON.stringify(data))
+      return {
+        statusCode: 500,
+        body: 'Invalid Gemini response structure'
+      }
+    }
+
+    // 🔒 Blindaje 3: JSON válido
+    let parsed
+    try {
+      parsed = JSON.parse(text)
+    } catch (e) {
+      console.error('Gemini returned non-JSON:', text)
+      return {
+        statusCode: 500,
+        body: 'Gemini did not return valid JSON'
+      }
+    }
 
     return {
       statusCode: 200,
@@ -78,7 +116,10 @@ NO incluyas texto fuera del JSON.
 
   } catch (err: any) {
     console.error('Proxy error:', err)
-    return { statusCode: 500, body: err.message }
+    return {
+      statusCode: 500,
+      body: err?.message || 'Internal server error'
+    }
   }
 }
 
